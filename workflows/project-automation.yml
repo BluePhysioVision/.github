@@ -1,7 +1,7 @@
 name: Project Automation for BluePhysioVision
 on:
   issues:
-    types: [assigned]
+    types: [assigned, opened]
   create:
   pull_request:
     types: [opened, reopened, closed]
@@ -28,7 +28,7 @@ jobs:
           organization: ${{ env.ORGANIZATION }}
           project_id: ${{ env.PROJECT_ID }}
           resource_node_id: ${{ github.event.issue.node_id }}
-          status_value: "​🎯 Ready for Dev"
+          status_value: "​ 🎯 Ready for Dev"
   
   branch_created:
     if: github.event_name == 'create' && github.event.ref_type == 'branch'
@@ -100,3 +100,15 @@ jobs:
           resource_node_id: ${{ github.event.pull_request.node_id }}
           status_value: "✅ Done"
   
+  issue_opened:
+    if: github.event_name == 'issues' && github.event.action == 'opened'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Move New Issue to Backlog
+        uses: leonsteinhaeuser/project-beta-automations@v2.1.0
+        with:
+          gh_token: ${{ secrets.GITHUB_TOKEN }}
+          organization: ${{ env.ORGANIZATION }}
+          project_id: ${{ env.PROJECT_ID }}
+          resource_node_id: ${{ github.event.issue.node_id }}
+          status_value: " 📋 Backlog"
