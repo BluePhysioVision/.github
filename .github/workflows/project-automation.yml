@@ -5,17 +5,11 @@ on:
   create:
   pull_request:
     types: [opened, reopened, closed]
-    
-permissions:
-  repository-projects: write
-  issues: write
-  pull-requests: write
-  contents: read
 
 env:
   ORGANIZATION: BluePhysioVision
   PROJECT_ID: 1
-  
+
 jobs:
   issue_opened:
     if: github.event_name == 'issues' && github.event.action == 'opened'
@@ -24,7 +18,7 @@ jobs:
       - name: Move New Issue to Backlog
         uses: leonsteinhaeuser/project-beta-automations@v2.1.0
         with:
-          gh_token: ${{ secrets.PROJECT_PAT) }}
+          gh_token: ${{ secrets.PROJECT_PAT }}
           organization: ${{ env.ORGANIZATION }}
           project_id: ${{ env.PROJECT_ID }}
           resource_node_id: ${{ github.event.issue.node_id }}
@@ -37,7 +31,7 @@ jobs:
       - name: Move Issue to Ready for Dev
         uses: leonsteinhaeuser/project-beta-automations@v2.1.0
         with:
-          gh_token: ${{ secrets.PROJECT_PAT) }}
+          gh_token: ${{ secrets.PROJECT_PAT }}
           organization: ${{ env.ORGANIZATION }}
           project_id: ${{ env.PROJECT_ID }}
           resource_node_id: ${{ github.event.issue.node_id }}
@@ -63,7 +57,7 @@ jobs:
         id: get_node
         uses: octokit/graphql-action@v2.x
         with:
-          headers: '{"Authorization": "Bearer ${{ secrets.PROJECT_PAT) }}"}'
+          headers: '{"Authorization": "Bearer ${{ secrets.PROJECT_PAT }}"}'
           query: |
             query($owner:String!, $repo:String!, $number:Int!) {
               repository(owner:$owner, name:$repo) {
@@ -81,7 +75,7 @@ jobs:
         if: steps.extract.outputs.issue_number != ''
         uses: leonsteinhaeuser/project-beta-automations@v2.1.0
         with:
-          gh_token: ${{ secrets.PROJECT_PAT) }}
+          gh_token: ${{ secrets.PROJECT_PAT }} 
           organization: ${{ env.ORGANIZATION }}
           project_id: ${{ env.PROJECT_ID }}
           resource_node_id: ${{ fromJson(steps.get_node.outputs.data).repository.issue.id }}
@@ -94,7 +88,7 @@ jobs:
       - name: Move PR to Code Review
         uses: leonsteinhaeuser/project-beta-automations@v2.1.0
         with:
-          gh_token: ${{ secrets.PROJECT_PAT) }}
+          gh_token: ${{ secrets.PROJECT_PAT }}
           organization: ${{ env.ORGANIZATION }}
           project_id: ${{ env.PROJECT_ID }}
           resource_node_id: ${{ github.event.pull_request.node_id }}
@@ -107,7 +101,7 @@ jobs:
       - name: Move PR to Done
         uses: leonsteinhaeuser/project-beta-automations@v2.1.0
         with:
-          gh_token: ${{ secrets.PROJECT_PAT)}}
+          gh_token: ${{ secrets.PROJECT_PAT }}
           organization: ${{ env.ORGANIZATION }}
           project_id: ${{ env.PROJECT_ID }}
           resource_node_id: ${{ github.event.pull_request.node_id }}
