@@ -19,8 +19,8 @@ El código está modularizado para mantener el orden. Por favor, dirígete al re
 ### 🧠 Backend & Cloud
 | Repositorio | Descripción | Tecnologías |
 | :--- | :--- | :--- |
-| **[bp-backend-cloud](https://github.com/BluePhysioVision/bp-backend-web)** | API Central, Base de datos y Procesamiento Pesado. | Python (FastAPI) / .NET |
-| **[bp-edge-computing](https://github.com/BluePhysioVision/bp-edge-computing)** | Servidor local (Raspberry Pi) y orquestación. | Python, Docker, MQTT |
+| **[bp-backend-web](https://github.com/BluePhysioVision/bp-backend-web)** | API Central, Base de datos y Procesamiento Pesado. | Python (FastAPI), Supabase |
+| **[bp-Raspberry_server](https://github.com/BluePhysioVision/bp-Raspberry_server)** | Servidor local (Raspberry Pi) y orquestación. | Python, Docker, MQTT |
 
 ### 🔌 Hardware & Firmware
 | Repositorio | Descripción | Tecnologías |
