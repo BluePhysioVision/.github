@@ -1,79 +1,137 @@
 # 🫐 BluePhysioVision
 
-> **Sistema de Análisis Automatizado de Salud Vegetal (Arándanos)**
-> Grupo de Investigación GISTFA - Universidad de Cundinamarca
+> **Sistema IoT-Edge de Análisis Fisiológico Automatizado en Plantas de Arándano**
+> Grupo de Investigación GISTFA — Universidad de Cundinamarca
 
-Bienvenido a la organización oficial del proyecto BluePhysioVision. Este sistema utiliza IoT, Edge Computing e Inteligencia Artificial para monitorear el crecimiento y fisiología de plantas de arándano.
+BluePhysioVision es un ecosistema distribuido que combina **IoT**, **Edge Computing**, **Computer Vision (ONNX)** e **Inteligencia Artificial Generativa (RAG/LLM)** para monitorear el crecimiento y diagnosticar el estado fisiológico de cultivos de arándano de forma automatizada y no invasiva.
 
 ---
 
-## 🗺️ Mapa de Navegación del Proyecto
+## 🏗️ Arquitectura del Sistema
 
-El código está modularizado para mantener el orden. Por favor, dirígete al repositorio correspondiente según el área de trabajo:
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                        USUARIO / NAVEGADOR                         │
+│                  bp-frontend-web (React 19 + Vite)                 │
+└──────────────────────────┬──────────────────────────────────────────┘
+                           │  HTTP (JWT)
+                           ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│                    bp-backend-web (FastAPI)                         │
+│           API Central · Auth · RBAC · Orquestador                  │
+│                         PostgreSQL                                 │
+├────────────┬──────────────────────────────┬─────────────────────────┤
+│            │  X-Internal-Key (HTTP)       │  X-Internal-Key (HTTP)  │
+│            ▼                              ▼                         │
+│  ┌──────────────────────┐   ┌───────────────────────────┐          │
+│  │  bp-ml-microservice  │   │    bp-llm-service         │          │
+│  │  ONNX Runtime (CV)   │   │  Gemini / Ollama + Redis  │          │
+│  │  Inferencia + IoU    │   │  RAG Agronómico + Cache   │          │
+│  └──────────────────────┘   └───────────────────────────┘          │
+└─────────────────────────────────────────────────────────────────────┘
 
-### 📱 Frontend & Web
-| Repositorio | Descripción | Tecnologías |
+┌─────────────────────────────────────────────────────────────────────┐
+│                   EDGE COMPUTING (Finca / Cultivo)                  │
+│          bp-Raspberry_server (FastAPI + Mosquitto MQTT)             │
+│     Recibe telemetría + fotos de ESP32-CAM, sincroniza a la nube   │
+├─────────────────────────────────────────────────────────────────────┤
+│   ESP32-CAM #1 ──(MQTT/HTTP)──►  Raspberry Pi 5  ──(HTTP)──► API  │
+│   ESP32-CAM #2 ──(MQTT/HTTP)──►                                    │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 🗺️ Mapa de Repositorios
+
+### 🧠 Backend & Cloud Services
+
+| Repositorio | Descripción | Stack |
 | :--- | :--- | :--- |
-| **[bp-frontend-web](https://github.com/BluePhysioVision/bp-frontend-web)** | Dashboard interactivo y gestión de usuarios. | React, TypeScript, Tailwind |
-| **[bp-raspberry-ui](https://github.com/BluePhysioVision/bp-raspberry-ui)** | Interfaz para el dispositivo Raspberry Pi local. | React, Vite, ShadcnUI |
+| **[bp-backend-web](https://github.com/BluePhysioVision/bp-backend-web)** | API Central: autenticación JWT + Supabase, RBAC, orquestación de microservicios, gestión de usuarios/plantaciones/capturas. | FastAPI, PostgreSQL, SQLAlchemy 2.0 Async, Alembic, Pydantic v2 |
+| **[bp-ml-microservice](https://github.com/BluePhysioVision/bp-ml-microservice)** | Motor de Computer Vision: inferencia ONNX, métricas fisiológicas (área foliar, índice de verdor), sandbox de validación con IoU (Shapely). | FastAPI, ONNX Runtime, Pillow, Shapely |
+| **[bp-llm-service](https://github.com/BluePhysioVision/bp-llm-service)** | Recomendaciones inteligentes: RAG agronómico sobre base de conocimiento JSON, caché semántico Redis, fallback multi-proveedor (Gemini → Ollama → reglas estáticas). | FastAPI, Redis 7+, Google Gemini 1.5, httpx |
 
-### 🧠 Backend & Cloud
-| Repositorio | Descripción | Tecnologías |
-| :--- | :--- | :--- |
-| **[bp-backend-cloud](https://github.com/BluePhysioVision/bp-backend-web)** | API Central, Base de datos y Procesamiento Pesado. | Python (FastAPI), Supabase |
-| **[bp-edge-computing](https://github.com/BluePhysioVision/bp-Raspberry_server)** | Servidor local (Raspberry Pi) y orquestación. | Python, Docker, MQTT |
+### 📱 Frontend
 
-### 🔌 Hardware & Firmware
-| Repositorio | Descripción | Tecnologías |
+| Repositorio | Descripción | Stack |
 | :--- | :--- | :--- |
-| **[bp-firmware-esp32](https://github.com/BluePhysioVision/bp-firmware-esp32)** | Código embebido para cámaras de captura. | C++, PlatformIO |
+| **[bp-frontend-web](https://github.com/BluePhysioVision/bp-frontend-web)** | Dashboard interactivo: gestión de plantaciones, cámaras, análisis, soporte y administración de usuarios. | React 19, Vite, TailwindCSS, shadcn/ui, TanStack Query, Recharts |
+
+### 🔌 Edge Computing & Hardware
+
+| Repositorio | Descripción | Stack |
+| :--- | :--- | :--- |
+| **[bp-Raspberry_server](https://github.com/BluePhysioVision/bp-Raspberry_server)** | Edge Gateway IoT: servidor en Raspberry Pi 5 que recopila telemetría MQTT e imágenes HTTP de nodos ESP32-CAM, con aceleración FFMPEG y sincronización a la nube. | FastAPI, Mosquitto (MQTT), SQLite, Docker, OpenCV |
+
+> **Nota:** El firmware de las cámaras ESP32-CAM (C++/PlatformIO) reside dentro del repositorio `bp-Raspberry_server` bajo `ESP32-CAM_Firmwares/`.
 
 ### 📚 Documentación Central
+
 | Repositorio | Descripción | Contenido |
 | :--- | :--- | :--- |
-| **[bp-documentation](https://github.com/BluePhysioVision/bp-documentation)** | 🛑 **LEER PRIMERO**. Manuales, investigación y guías. | PDFs, Diseños, Docs |
+| **[bp-documentation](https://github.com/BluePhysioVision/bp-documentation)** | 🛑 **LEER PRIMERO**. Estándares de código, commits, onboarding, diseños e investigación. | PDFs, Diagramas, Guías |
 
 ---
 
-## �️ Resumen de Prácticas de Desarrollo
+## 🔒 Comunicación entre Servicios
 
-Para garantizar la calidad y homogeneidad del código, seguimos estos estándares esenciales:
+| Origen | Destino | Mecanismo | Autenticación |
+| :--- | :--- | :--- | :--- |
+| Frontend → Backend | HTTP REST | Bearer JWT (access + refresh) |
+| Backend → ML Service | HTTP interno (Docker) | `X-Internal-Key` header |
+| Backend → LLM Service | HTTP interno (Docker) | `X-Internal-Key` header |
+| ESP32-CAM → Raspberry Pi | MQTT (telemetría) + HTTP (fotos) | Credenciales MQTT / API Key |
+| Raspberry Pi → Backend | HTTP REST (sincronización) | Bearer JWT / API Key |
 
-### 1. Convenciones de Código
-- **Backend (Python)**: Seguimos **PEP 8**.
-  - `snake_case` para archivos, funciones y variables.
-  - `PascalCase` para clases.
-- **Frontend (React)**: Seguimos **Airbnb Style Guide**.
-  - `PascalCase` para Componentes e Interfaces.
-  - `camelCase` para funciones, variables y hooks.
-  - Componentes funcionales con TypeScript.
+---
 
-### 2. Protocolo de Commits
+## 🛠️ Prácticas de Desarrollo
+
+### Convenciones de Código
+
+- **Backend (Python)**: PEP 8 — `snake_case` para archivos/funciones/variables, `PascalCase` para clases.
+- **Frontend (React/TS)**: Airbnb Style Guide — `PascalCase` componentes/interfaces, `camelCase` funciones/hooks.
+- **Linting**: Ruff (Python), ESLint (TypeScript).
+- **Testing**: Pytest + httpx (backend), Vitest (frontend).
+
+### Protocolo de Commits
+
 Usamos **[Conventional Commits](https://www.conventionalcommits.org/)**: `<tipo>(<alcance>): <descripción>`
 
-| Tipo | Uso Común | Ejemplo |
-|:---|:---|:---|
+| Tipo | Uso | Ejemplo |
+| :--- | :--- | :--- |
 | `feat` | Nueva funcionalidad | `feat(auth): add login with google` |
 | `fix` | Corrección de errores | `fix(nav): resolve menu collapse issue` |
 | `docs` | Cambios en documentación | `docs(readme): update setup steps` |
-| `chore`| Mantenimiento (build, deps)| `chore(package): upgrade react version` |
+| `refactor` | Refactorización sin cambio funcional | `refactor(api): extract base client` |
+| `chore` | Mantenimiento (build, deps) | `chore(deps): upgrade fastapi to 0.115` |
+| `test` | Tests nuevos o corregidos | `test(auth): add jwt expiration tests` |
+| `ci` | Cambios en CI/CD | `ci(actions): add security scan workflow` |
+
+### Flujo de Trabajo (Git Flow)
+
+1. **`main` protegida**: Nunca hagas commit directo en `main`.
+2. **Ramas de trabajo**: Crea una rama por tarea vinculada a un issue.
+   - `feature/RF-07-nueva-camara`, `fix/12-login-error`, `docs/update-readme`
+3. **Pull Request**: Abre PR hacia `main` con referencia al issue (`Closes #7`).
+4. **Automatización**: Los workflows de proyecto mueven automáticamente los issues en el tablero Kanban (Backlog → Ready → In Progress → Code Review → Done).
+
+> **Onboarding**: Antes de empezar, clona `bp-documentation` y lee `ONBOARDING.md`.
 
 ---
 
-## 🛣️ Rutas Recomendadas (Workflow)
+## ⚙️ CI/CD y Automatización
 
-Seguimos una metodología estricta para el control de versiones:
+Cada repositorio contiene sus propios workflows de GitHub Actions:
 
-1.  **Rama Principal protegida**: Nunca hagas commit directo en `main`.
-2.  **Ramas de Funcionalidad**:
-    - Crea una rama para cada tarea: `feature/nombre-tarea` o `fix/nombre-error`.
-    - Ejemplo: `git checkout -b feature/nueva-camara`.
-3.  **Proceso de Integración**:
-    - Haz tus cambios y commits siguiendo la convención.
-    - Haz Push de tu rama: `git push origin feature/nueva-camara`.
-    - Abre un **Pull Request (PR)** hacia `main` para revisión.
-
-> **Nota**: Antes de empezar, asegúrate de tener clonado el repositorio `bp-documentation` y leer el archivo `ONBOARDING.md` para configurar tu entorno.
+| Workflow | Repositorios | Propósito |
+| :--- | :--- | :--- |
+| `project-automation.yml` | backend, frontend | Automación del tablero de proyecto (mover issues/PRs por columnas). |
+| `ci.yml` | backend, raspberry | Lint + tests en cada PR. |
+| `ci_validation.yml` | frontend | Build + lint en cada PR. |
+| `security.yml` | backend, raspberry | Escaneo de dependencias y secretos. |
+| `deploy.yml` | raspberry | Despliegue automatizado al Edge. |
 
 ---
 
@@ -81,3 +139,8 @@ Seguimos una metodología estricta para el control de versiones:
 
 ![Status](https://img.shields.io/badge/Status-Development-yellow)
 ![License](https://img.shields.io/badge/License-MIT-blue)
+![Python](https://img.shields.io/badge/Python-3.11+-blue)
+![React](https://img.shields.io/badge/React-19-61DAFB)
+![FastAPI](https://img.shields.io/badge/FastAPI-0.109+-green)
+
+**Universidad de Cundinamarca** · Grupo GISTFA · © 2026
