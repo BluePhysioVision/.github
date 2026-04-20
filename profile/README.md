@@ -64,13 +64,6 @@ BluePhysioVision es un ecosistema distribuido que combina **IoT**, **Edge Comput
 | :--- | :--- | :--- |
 | **[bp-Raspberry_server](https://github.com/BluePhysioVision/bp-Raspberry_server)** | Edge Gateway IoT: servidor en Raspberry Pi 5 que recopila telemetría MQTT e imágenes HTTP de nodos ESP32-CAM, con aceleración FFMPEG y sincronización a la nube. | FastAPI, Mosquitto (MQTT), SQLite, Docker, OpenCV |
 | **[bp-firmware-esp32](https://github.com/BluePhysioVision/bp-firmware-esp32)** | Firmware de los nodos sensores: lógica de captura de imagen, gestión de red, aprovisionamiento remoto vía MQTT y ahorro de energía para ESP32-CAM. | PlatformIO, C++, Arduino Core, PubSubClient |
-| **[bp-raspberry-ui](https://github.com/BluePhysioVision/bp-raspberry-ui)** | Dashboard local de monitoreo: interfaz gráfica táctil para la Raspberry Pi instalada en la finca para visualización en tiempo real sin internet. | React 19, Vite, TailwindCSS, Shadcn/UI |
-
-### 🤖 Agentic Orchestration & Memory
-
-| Repositorio | Descripción | Stack |
-| :--- | :--- | :--- |
-| **[bp-memory](https://github.com/BluePhysioVision/bp-memory)** | Sistema de memoria persistente: almacén de observaciones, decisiones arquitectónicas y contextos para orquestación de agentes de IA (Antigravity Protocol). | Python, SQLite (FTS5), Conda, JSON |
 
 ### 📚 Documentación Central
 
