@@ -1,0 +1,86 @@
+name: Build & Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  REGISTRY: registry.digitalocean.com/bluephy
+  IMAGE_NAME: backend
+
+jobs:
+  test:
+    name: Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install uv
+        run: pip install uv
+
+      - name: Install dependencies
+        run: uv pip install --system -r bp-backend-web/requirements.txt
+
+      - name: Run tests
+        working-directory: bp-backend-web
+        env:
+          DB_HOST: localhost
+          DB_PORT: 5432
+          DB_NAME: bluephy_test
+          DB_USER: postgres
+          DB_PASSWORD: test
+        run: pytest tests/ --cov=app --cov-report=xml -q
+
+  build-push:
+    name: Build & Push Image
+    needs: test
+    runs-on: ubuntu-latest
+    outputs:
+      image_tag: ${{ steps.meta.outputs.tags }}
+      sha_tag: ${{ steps.sha.outputs.tag }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Generate image tag (short SHA)
+        id: sha
+        run: echo "tag=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+
+      - name: Install doctl
+        uses: digitalocean/action-doctl@v2
+        with:
+          token: ${{ secrets.DO_API_TOKEN }}
+
+      - name: Login to DO Container Registry
+        run: doctl registry login --expiry-seconds 600
+
+      - name: Build and push Docker image
+        working-directory: bp-backend-web
+        run: |
+          docker build \
+            --tag ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.sha.outputs.tag }} \
+            --tag ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest \
+            .
+          docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.sha.outputs.tag }}
+          docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+
+  deploy:
+    name: Deploy to Droplet
+    needs: build-push
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.DROPLET_IP }}
+          username: deploy
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          script: |
+            /home/deploy/bluephy/deploy.sh ${{ needs.build-push.outputs.sha_tag }}
