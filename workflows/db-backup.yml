@@ -1,0 +1,43 @@
+name: Database Backup
+
+on:
+  schedule:
+    - cron: '0 3 * * *'
+  workflow_dispatch:
+
+jobs:
+  backup:
+    name: pg_dump Supabase → DO Spaces
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Install PostgreSQL client + s3cmd
+        run: sudo apt-get install -y postgresql-client s3cmd
+
+      - name: Configure s3cmd
+        run: |
+          cat > ~/.s3cfg << 'EOF'
+          [default]
+          access_key = ${{ secrets.DO_SPACES_KEY }}
+          secret_key = ${{ secrets.DO_SPACES_SECRET }}
+          host_base = nyc3.digitaloceanspaces.com
+          host_bucket = %(bucket)s.nyc3.digitaloceanspaces.com
+          use_https = True
+          EOF
+
+      - name: Run pg_dump
+        env:
+          PGPASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+        run: |
+          TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+          DUMP=/tmp/bluephy_${TIMESTAMP}.dump
+          pg_dump \
+            --host=${{ secrets.SUPABASE_DB_HOST }} \
+            --port=${{ secrets.SUPABASE_DB_PORT }} \
+            --username=${{ secrets.SUPABASE_DB_USER }} \
+            --dbname=postgres \
+            --format=custom \
+            --no-owner \
+            --file="$DUMP"
+          s3cmd put "$DUMP" s3://bluephy-backups/pg_dumps/bluephy_${TIMESTAMP}.dump --acl-private
+          echo "Backup: $(du -sh $DUMP | cut -f1)"
