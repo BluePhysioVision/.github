@@ -1,86 +1,48 @@
-name: Build & Deploy
+name: Deploy Stack (Droplet Build)
 
 on:
   push:
     branches: [main]
+    # OPTIMIZACIÓN: El CI/CD solo se dispara si cambias código real.
+    # Si modificas documentación, no gastarás minutos.
+    paths:
+      - 'bp-backend-web/**'
+      - 'bp-frontend-web/**'
+      - 'bp-ml-microservice/**'
+      - 'docker-compose.yml'
   workflow_dispatch:
 
-env:
-  REGISTRY: registry.digitalocean.com/bluephy
-  IMAGE_NAME: backend
-
 jobs:
-  test:
-    name: Tests
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up Python 3.11
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-
-      - name: Install uv
-        run: pip install uv
-
-      - name: Install dependencies
-        run: uv pip install --system -r bp-backend-web/requirements.txt
-
-      - name: Run tests
-        working-directory: bp-backend-web
-        env:
-          DB_HOST: localhost
-          DB_PORT: 5432
-          DB_NAME: bluephy_test
-          DB_USER: postgres
-          DB_PASSWORD: test
-        run: pytest tests/ --cov=app --cov-report=xml -q
-
-  build-push:
-    name: Build & Push Image
-    needs: test
-    runs-on: ubuntu-latest
-    outputs:
-      image_tag: ${{ steps.meta.outputs.tags }}
-      sha_tag: ${{ steps.sha.outputs.tag }}
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Generate image tag (short SHA)
-        id: sha
-        run: echo "tag=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
-
-      - name: Install doctl
-        uses: digitalocean/action-doctl@v2
-        with:
-          token: ${{ secrets.DO_API_TOKEN }}
-
-      - name: Login to DO Container Registry
-        run: doctl registry login --expiry-seconds 600
-
-      - name: Build and push Docker image
-        working-directory: bp-backend-web
-        run: |
-          docker build \
-            --tag ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.sha.outputs.tag }} \
-            --tag ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest \
-            .
-          docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.sha.outputs.tag }}
-          docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
-
   deploy:
     name: Deploy to Droplet
-    needs: build-push
     runs-on: ubuntu-latest
-
+    
     steps:
-      - name: Deploy via SSH
+      - name: Deploy via SSH (Zero-Minute Build)
         uses: appleboy/ssh-action@v1
         with:
           host: ${{ secrets.DROPLET_IP }}
           username: deploy
           key: ${{ secrets.DEPLOY_SSH_KEY }}
+          # El script se ejecuta en tu Droplet. GitHub no cobra por el tiempo
+          # que tarda el Droplet en compilar, solo por los segundos que tarda en enviar este comando.
           script: |
-            /home/deploy/bluephy/deploy.sh ${{ needs.build-push.outputs.sha_tag }}
+            echo "🚀 Iniciando despliegue directo en Droplet..."
+            cd /home/deploy/bluephy
+            
+            echo "1️⃣ Descargando últimos cambios de GitHub..."
+            git checkout main
+            git pull origin main
+            
+            echo "2️⃣ Construyendo imágenes (Backend, Frontend, ML)..."
+            # Esto usa la caché de Docker del Droplet, haciéndolo muy rápido.
+            docker compose build
+            
+            echo "3️⃣ Levantando servicios..."
+            docker compose up -d
+            
+            echo "4️⃣ Limpieza automática de disco (ROM)..."
+            docker image prune -f
+            
+            echo "✅ ¡Despliegue exitoso!"
+
