@@ -3,8 +3,6 @@ name: Deploy Stack (Droplet Build)
 on:
   push:
     branches: [main]
-    # OPTIMIZACIÓN: El CI/CD solo se dispara si cambias código real.
-    # Si modificas documentación, no gastarás minutos.
     paths:
       - 'bp-backend-web/**'
       - 'bp-frontend-web/**'
@@ -18,31 +16,51 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
-      - name: Deploy via SSH (Zero-Minute Build)
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        
+      - name: Transfer Source Code to Droplet
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.DROPLET_IP }}
+          username: deploy
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          # Copia todo el repositorio al Droplet
+          source: "."
+          target: "/home/deploy/bluephy/src"
+          
+      - name: Build & Deploy via SSH
         uses: appleboy/ssh-action@v1
         with:
           host: ${{ secrets.DROPLET_IP }}
           username: deploy
           key: ${{ secrets.DEPLOY_SSH_KEY }}
-          # El script se ejecuta en tu Droplet. GitHub no cobra por el tiempo
-          # que tarda el Droplet en compilar, solo por los segundos que tarda en enviar este comando.
           script: |
             echo "🚀 Iniciando despliegue directo en Droplet..."
-            cd /home/deploy/bluephy
+            cd /home/deploy/bluephy/src
             
-            echo "1️⃣ Descargando últimos cambios de GitHub..."
-            git checkout main
-            git pull origin main
+            echo "1️⃣ Moviendo archivos .env locales al código fuente..."
+            # Tu Droplet tiene el .env principal en /home/deploy/bluephy
+            # Lo copiamos al backend:
+            cp /home/deploy/bluephy/.env ./bp-backend-web/.env
+            
+            # El ML microservice necesita su propio .env
+            # Lo creamos a partir de tu .env global más lo del ml-service
+            cp ./bp-ml-microservice/.env.example ./bp-ml-microservice/.env
+            # Extraemos la INTERNAL_KEY del env principal y la inyectamos al de ML
+            INTERNAL_KEY=$(grep ML_SERVICE_INTERNAL_KEY /home/deploy/bluephy/.env | cut -d '=' -f2)
+            sed -i "s/^INTERNAL_KEY=.*/INTERNAL_KEY=$INTERNAL_KEY/" ./bp-ml-microservice/.env
             
             echo "2️⃣ Construyendo imágenes (Backend, Frontend, ML)..."
-            # Esto usa la caché de Docker del Droplet, haciéndolo muy rápido.
+            # Compila usando la CPU del Droplet (cero costo de GitHub)
             docker compose build
             
             echo "3️⃣ Levantando servicios..."
             docker compose up -d
             
-            echo "4️⃣ Limpieza automática de disco (ROM)..."
+            echo "4️⃣ Limpieza automática de imágenes viejas..."
             docker image prune -f
             
             echo "✅ ¡Despliegue exitoso!"
+
 
